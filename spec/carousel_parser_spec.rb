@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "serpapi_code_challenge"
+require "support/vcr"
 
 RSpec.describe SerpapiCodeChallenge::CarouselParser do
   let(:expected) do
@@ -61,6 +62,18 @@ RSpec.describe SerpapiCodeChallenge::CarouselParser do
           expect(items).to all(include(:name, :link))
         end
       end
+    end
+
+    # Picasso's raw page is no longer stored as a standalone fixture (it parsed
+    # identically to this cassette body); replay the recorded SERP so the
+    # generalization assertion still runs for the Picasso layout.
+    it "extracts a non-empty carousel from the Picasso cassette" do
+      items = VCR.use_cassette("serp_fetcher/picasso_paintings") do
+        html = SerpapiCodeChallenge::SerpFetcher.get("https://www.google.com/search?q=Pablo+Picasso+paintings&hl=en&gl=us")
+        described_class.new(html).artworks
+      end
+      expect(items).not_to be_empty
+      expect(items).to all(include(:name, :link))
     end
   end
 end

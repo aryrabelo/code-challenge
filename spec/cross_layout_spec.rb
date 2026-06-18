@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "serpapi_code_challenge"
+require "support/vcr"
 
 MONET_COUNT = 50
 MONET_FIRST_NAME = "Impression, Sunrise"
@@ -47,8 +48,14 @@ RSpec.describe SerpapiCodeChallenge::CarouselParser do
       expect(items.first[:link]).to start_with("https://www.google.com/search")
     end
 
+    # Picasso's page shares its parsed output with the serp_fetcher cassette, so
+    # we replay that recorded SERP instead of storing the multi-MB raw page a
+    # second time — same deterministic facts (45 / "Guernica"), one source of HTML.
     it "extracts Picasso's works carousel exactly" do
-      items = extract("pages/picasso-paintings.html")
+      items = VCR.use_cassette("serp_fetcher/picasso_paintings") do
+        html = SerpapiCodeChallenge::SerpFetcher.get("https://www.google.com/search?q=Pablo+Picasso+paintings&hl=en&gl=us")
+        described_class.new(html).artworks
+      end
       expect(items.length).to eq(PICASSO_COUNT)
       expect(items.first[:name]).to eq(PICASSO_FIRST_NAME)
       expect(items.first[:link]).to start_with("https://www.google.com/search")
