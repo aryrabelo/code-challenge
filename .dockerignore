@@ -1,0 +1,11 @@
+.git
+.gitignore
+tmp/
+log/
+*.log
+.DS_Store
+vendor/bundle
+.bundle/
+.mise.local.toml
+# large binary not needed inside the container (kept in the repo for reference)
+docs/challenge/van-gogh-paintings.png

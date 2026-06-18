@@ -1,0 +1,36 @@
+# Reproducible Ruby 3.3 test environment — the standard Ruby/Rails dev pattern:
+# bind-mount the source, keep gems in a named `bundle` volume, and let the
+# entrypoint run `bundle install` on first `up`.
+#
+#   docker compose run --rm test           # run the full RSpec suite
+#   docker compose run --rm test bin/verify # offline oracle check
+#   docker compose run --rm shell           # interactive shell
+name: serpapi-code-challenge
+
+services:
+  test:
+    build:
+      context: .
+      args:
+        RUBY_VERSION: "3.3.6"
+    volumes:
+      - .:/app:cached
+      - bundle:/usr/local/bundle
+    environment:
+      BUNDLE_PATH: /usr/local/bundle
+    command: ["bundle", "exec", "rspec"]
+
+  shell:
+    build:
+      context: .
+      args:
+        RUBY_VERSION: "3.3.6"
+    volumes:
+      - .:/app:cached
+      - bundle:/usr/local/bundle
+    environment:
+      BUNDLE_PATH: /usr/local/bundle
+    command: ["bash"]
+
+volumes:
+  bundle:
