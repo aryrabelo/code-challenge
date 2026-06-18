@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Extract the artworks carousel from a Google SERP and print it as JSON.
+# Print the artworks carousel from a saved Google SERP as JSON.
 #   bin/extract path/to/serp.html
-require_relative "../lib/serpapi_code_challenge"
+require_relative "../lib/carousel_parser"
 
-exit SerpapiCodeChallenge::CLI.run(ARGV)
+abort "usage: bin/extract <file.html>" if ARGV.empty?
+puts JSON.pretty_generate(CarouselParser.from_file(ARGV[0]).to_h)

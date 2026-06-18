@@ -1,28 +1,22 @@
-PATH
-  remote: .
-  specs:
-    serpapi_code_challenge (0.1.0)
-      nokogiri (>= 1.13)
-
 GEM
   remote: https://rubygems.org/
   specs:
     diff-lcs (1.6.2)
-    nokogiri (1.19.3-aarch64-linux-gnu)
+    nokogiri (1.19.4-aarch64-linux-gnu)
       racc (~> 1.4)
-    nokogiri (1.19.3-aarch64-linux-musl)
+    nokogiri (1.19.4-aarch64-linux-musl)
       racc (~> 1.4)
-    nokogiri (1.19.3-arm-linux-gnu)
+    nokogiri (1.19.4-arm-linux-gnu)
       racc (~> 1.4)
-    nokogiri (1.19.3-arm-linux-musl)
+    nokogiri (1.19.4-arm-linux-musl)
       racc (~> 1.4)
-    nokogiri (1.19.3-arm64-darwin)
+    nokogiri (1.19.4-arm64-darwin)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-darwin)
+    nokogiri (1.19.4-x86_64-darwin)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-linux-gnu)
+    nokogiri (1.19.4-x86_64-linux-gnu)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-linux-musl)
+    nokogiri (1.19.4-x86_64-linux-musl)
       racc (~> 1.4)
     racc (1.8.1)
     rspec (3.13.2)
@@ -50,8 +44,8 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  nokogiri (>= 1.13)
   rspec (~> 3.13)
-  serpapi_code_challenge!
 
 BUNDLED WITH
    2.5.22

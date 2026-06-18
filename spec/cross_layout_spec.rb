@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "serpapi_code_challenge"
+require "carousel_parser"
 
 MONET_COUNT = 50
 MONET_FIRST_NAME = "Impression, Sunrise"
@@ -16,7 +16,7 @@ TARANTINO_FIRST_NAME = "Pulp Fiction"
 # Cross-layout / generalization correctness — the dimension the challenge most
 # probes ("test against 2 other similar result pages... different layouts").
 # These pin DETERMINISTIC facts, not just non-emptiness.
-RSpec.describe SerpapiCodeChallenge::CarouselParser do
+RSpec.describe CarouselParser do
   def extract(name)
     described_class.from_file(File.join(ROOT, "spec", "fixtures", name)).artworks
   end

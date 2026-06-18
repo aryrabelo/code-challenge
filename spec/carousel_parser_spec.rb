@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "serpapi_code_challenge"
+require "carousel_parser"
 
-RSpec.describe SerpapiCodeChallenge::CarouselParser do
+RSpec.describe CarouselParser do
   let(:expected) do
     JSON.parse(File.read(challenge_fixture("expected-array.json")))["artworks"]
   end

@@ -2,6 +2,8 @@
 
 source "https://rubygems.org"
 
-# Runtime + development dependencies are declared in the gemspec
-# (serpapi_code_challenge.gemspec). Bundler reads them via `gemspec`.
-gemspec
+gem "nokogiri", ">= 1.13"
+
+group :test do
+  gem "rspec", "~> 3.13"
+end

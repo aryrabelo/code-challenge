@@ -3,11 +3,10 @@
 require "nokogiri"
 require "json"
 
-# One lean parser covering every carousel the suite pins: the Van Gogh oracle,
-# the Monet/Picasso/Tarsila :works carousels, and the real non-:works films one.
-module SerpapiCodeChallenge; end
-
-class SerpapiCodeChallenge::CarouselParser
+# Extracts a Google knowledge-graph carousel from a saved SERP page into
+# { name:, extensions:, link:, image: } items. Proven on the Van Gogh oracle and
+# generalizes to other artists' :works carousels and a person's films carousel.
+class CarouselParser
   GOOGLE = "https://www.google.com"
   ENTITY = %r{kc:/\w+/\w+:\w+}
   RASTER = %r{\Ahttps://|\Adata:image/(?:png|jpe?g|gif|webp);base64,}
@@ -16,97 +15,133 @@ class SerpapiCodeChallenge::CarouselParser
 
   def initialize(html)
     @html = html.to_s.dup.force_encoding("UTF-8").scrub
-    @doc = Nokogiri::HTML(@html) { |c| c.huge }                  # huge: don't truncate the DOM
-    # Visible cells embed base64 thumbnails in `var s='…';var ii=['<img id>']`
-    # scripts; the rest only reference a gstatic URL via data-src.
-    @inline = @html.scan(%r{var s='(data:image/[^']*+)';var ii=\[([^\]]*+)\]})
-                   .flat_map { |s, ii| ii.scan(/'([^']+)'/).map { |(id)| [id, unescape(s)] } }.to_h
+    @doc = Nokogiri::HTML(@html) { |c| c.huge }   # huge: keep libxml from truncating a big DOM
+    @inline = inline_images
   end
 
   def artworks
-    container.css('a[href*="/search"][href*="stick="]').filter_map { |a| item(a) }
+    container.css('a[href*="/search"][href*="stick="]').filter_map { |anchor| item(anchor) }
   end
 
-  def to_h = { "artworks" => artworks.map { |h| h.transform_keys(&:to_s) } }
+  def to_h = { "artworks" => artworks.map { |art| art.transform_keys(&:to_s) } }
   def to_json(*args) = JSON.generate(to_h, *args)
 
   private
 
-  # Scope to ONE carousel by its durable knowledge-graph data-attrid: the artist
-  # works section, else any ":works", else the first entity carousel that holds
-  # stick= anchors (a person's films/books); whole document as a last resort.
+  # One carousel section, picked by its stable knowledge-graph data-attrid (the
+  # hashed CSS classes rotate per query). Most specific match first.
   def container
-    @doc.at_css('[data-attrid="kc:/visual_art/visual_artist:works"]') ||
-      @doc.css("[data-attrid]").find { |n| n["data-attrid"].to_s.end_with?(":works") } ||
-      @doc.css("[data-attrid]").find { |n| n["data-attrid"].to_s.match?(ENTITY) && n.at_css('a[href*="stick="]') } ||
-      @doc
+    artist_works || any_works || entity_carousel || @doc
   end
 
+  def artist_works
+    @doc.at_css('[data-attrid="kc:/visual_art/visual_artist:works"]')
+  end
+
+  def any_works
+    sections.find { |section| section["data-attrid"].to_s.end_with?(":works") }
+  end
+
+  def entity_carousel
+    sections.find do |section|
+      section["data-attrid"].to_s.match?(ENTITY) && section.at_css('a[href*="stick="]')
+    end
+  end
+
+  def sections = @doc.css("[data-attrid]")
+
   def item(anchor)
-    text_name, subtitle = labels(anchor)
-    name = alt_name(anchor) || text_name
+    name, date = labels(anchor)
+    name = alt_name(anchor) || name
     return unless name
 
     art = { name: name }
-    art[:extensions] = [subtitle] if subtitle
+    art[:extensions] = [date] if date
     art[:link] = GOOGLE + anchor["href"] if anchor["href"].start_with?("/")
     art[:image] = image(anchor)
     art
   end
 
-  # Prefer the image's alt text — Google's screen-reader label for the cell, which
-  # is the artwork title verbatim. It is semantic (independent of Google's rotating
-  # div nesting), so it is the most durable name source; the structural leaf-text /
-  # aria labels below are the fallback for cells whose <img> carries no alt (films).
+  # The image alt is Google's screen-reader title for the cell and the most
+  # durable name; structural labels are the fallback when an <img> has no alt.
   def alt_name(anchor)
     img = anchor.at_css("img") || cell_image(anchor)
     img && norm(img["alt"])
   end
 
-  # Name + optional date: the anchor's inner leaf-text divs (paintings), or the
-  # aria-labelledby spans an empty entity-carousel anchor points at (films).
+  # [name, date]. A painting cell stacks them in plain-text <div>s; a films cell
+  # leaves the anchor empty and names them in aria-labelledby <span>s.
   def labels(anchor)
-    texts = anchor.css("div")
-                  .select { |d| d.children.any? && d.children.all?(&:text?) && !d.text.strip.empty? }
-                  .map { |d| clean(d) }
-    return texts.first(2) if texts.first
+    divs = text_divs(anchor)
+    return divs.first(2) if divs.any?
 
+    aria_labels(anchor)
+  end
+
+  def text_divs(anchor)
+    anchor.css("div").select { |div| leaf_text?(div) }.map { |div| clean(div) }
+  end
+
+  def leaf_text?(div)
+    div.children.any? && div.children.all?(&:text?) && !div.text.strip.empty?
+  end
+
+  def aria_labels(anchor)
     anchor["aria-labelledby"].to_s.split.first(2).map { |id| clean(@doc.at_css("##{id}")) }
   end
 
-  # Thumbnail: inside the anchor (paintings) a gstatic data-src or embedded
-  # base64; beside it (films) the data-URI in a sibling <img> src. Only https /
-  # raster data-URIs are emitted (no svg/js beacons).
+  # A painting cell's <img> is inside the anchor; a films cell's sits beside it.
   def image(anchor)
-    inner = anchor.at_css("img")
-    img = inner || cell_image(anchor)
-    return unless img
-
-    keys = inner ? %w[data-src] : %w[src data-src]
-    src = keys.filter_map { |k| present(img[k]) }.first || @inline[img["id"]]
+    if (inner = anchor.at_css("img"))
+      src = inner_thumbnail(inner)
+    elsif (sibling = cell_image(anchor))
+      src = sibling_thumbnail(sibling)
+    end
     src if src&.match?(RASTER)
   end
 
-  # The <img> of an empty anchor's cell: climb while still inside a single-item
-  # cell (one stick= anchor) so we never borrow a neighbour's thumbnail.
+  # A painting's inner <img> holds a 1x1 placeholder in src (the real bytes load
+  # later via _setImagesSrc), so read data-src or the script-embedded base64.
+  def inner_thumbnail(img)
+    present(img["data-src"]) || @inline[img["id"]]
+  end
+
+  # A films <img> carries the data-URI directly in src.
+  def sibling_thumbnail(img)
+    present(img["src"]) || present(img["data-src"]) || @inline[img["id"]]
+  end
+
+  # The thumbnail for an empty (films) anchor: climb to the nearest ancestor that
+  # holds an <img>, stopping before one that wraps another cell.
   def cell_image(anchor)
     node = anchor.parent
-    while node && node.css("a").count { |x| x["href"].to_s.include?("stick=") } <= 1
+    until node.nil? || wraps_other_cell?(node)
       img = node.at_css("img")
       return img if img
 
       node = node.parent
     end
-    nil
   end
 
-  # Normalize Google's non-breaking spaces (U+00A0) and trim; nil when empty.
-  def norm(str) = str && !(t = str.gsub("\u00A0", " ").strip).empty? ? t : nil
-  def clean(el) = norm(el&.text)
+  def wraps_other_cell?(node)
+    node.css('a[href*="stick="]').size > 1
+  end
 
-  def present(value) = value && !value.empty? ? value : nil
+  # Inline base64 thumbnails Google injects as `var s='data:…';var ii=['<id>']`,
+  # mapped <img id> => data-URI (with \x3d / \u… / \/ escapes decoded).
+  def inline_images
+    @html.scan(%r{var s='(data:image/[^']*+)';var ii=\[([^\]]*+)\]})
+         .flat_map { |s, ii| ii.scan(/'([^']+)'/).map { |(id)| [id, unescape(s)] } }
+         .to_h
+  end
 
   def unescape(str)
-    str.gsub(/\\x(\h\h)/) { $1.to_i(16).chr }.gsub(/\\u(\h{4})/) { [$1.to_i(16)].pack("U") }.gsub('\\/', "/")
+    str.gsub(/\\x(\h\h)/) { $1.to_i(16).chr }
+       .gsub(/\\u(\h{4})/) { [$1.to_i(16)].pack("U") }
+       .gsub('\\/', "/")
   end
+
+  def norm(str) = str && !(t = str.gsub("\u00A0", " ").strip).empty? ? t : nil
+  def clean(node) = norm(node&.text)
+  def present(value) = value && !value.empty? ? value : nil
 end
