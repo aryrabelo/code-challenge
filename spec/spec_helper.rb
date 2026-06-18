@@ -21,11 +21,4 @@ RSpec.configure do |config|
   config.disable_monkey_patching!
   config.expect_with(:rspec) { |c| c.syntax = :expect }
   config.order = :defined
-
-  # Never throttle replayed/stubbed fetches — the rate guard is a live-fetch
-  # safeguard only. (SerpapiCodeChallenge::RateGuard's own behaviour is tested with real instances.)
-  config.before(:suite) do
-    require "serpapi_code_challenge"
-    SerpapiCodeChallenge::RateGuard.default = SerpapiCodeChallenge::RateGuard.null
-  end
 end

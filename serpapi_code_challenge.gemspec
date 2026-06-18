@@ -20,7 +20,4 @@ Gem::Specification.new do |spec|
   spec.add_dependency "nokogiri", ">= 1.13"
 
   spec.add_development_dependency "rspec",   "~> 3.13"
-  # Headless-Chrome capture tool (BrowserFetcher / `bin/extract --browser`).
-  # Optional: only needed to fetch live pages; the suite parses committed fixtures.
-  spec.add_development_dependency "ferrum",  "~> 0.17"
 end

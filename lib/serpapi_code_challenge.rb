@@ -2,8 +2,6 @@
 
 require_relative "serpapi_code_challenge/version"
 require_relative "carousel_parser"
-require_relative "rate_guard"
-require_relative "browser_fetcher"
 require_relative "serpapi_code_challenge/cli"
 
 # Top-level namespace for the SerpApi "Extract Van Gogh Paintings" code challenge.

@@ -3,7 +3,6 @@
 
 # Extract the artworks carousel from a Google SERP and print it as JSON.
 #   bin/extract path/to/serp.html
-#   bin/extract --url "https://www.google.com/search?q=Van+Gogh+paintings&hl=en"
 require_relative "../lib/serpapi_code_challenge"
 
 exit SerpapiCodeChallenge::CLI.run(ARGV)

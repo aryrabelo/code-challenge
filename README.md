@@ -1,6 +1,6 @@
 # Extract Van Gogh Paintings Code Challenge
 
-> **Solution → [SOLUTION.md](SOLUTION.md).** A layout-resilient Google knowledge-graph extractor (reproduces `expected-array.json` **47/47**, generalizes across real layouts) that also runs end-to-end against **live Google** — `bin/extract --browser "<url>"` serves the same `{"artworks": […]}` JSON SerpApi serves to clients. The core parses the provided file per the brief (*no extra HTTP*). Everything below is the original challenge prompt.
+> **Solution → [SOLUTION.md](SOLUTION.md).** A layout-resilient Google knowledge-graph extractor that scopes the carousel by a durable `data-attrid` and names each item from the image's accessibility (`alt`) text — reproduces `expected-array.json` **47/47** and generalizes across real layouts (Monet, Picasso, da Vinci, Tarsila pt-BR, a Tarantino films carousel). Parses the provided file per the brief (*no extra HTTP*); the optional live fetch-and-serve layer is on a separate branch ([EXTRAS.md](EXTRAS.md)). Everything below is the original challenge prompt.
 
 Goal is to extract a list of Van Gogh paintings from the attached Google search results page.
 

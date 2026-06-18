@@ -4,8 +4,7 @@ require "serpapi_code_challenge"
 require "stringio"
 
 # The CLI is the SerpApi-style entrypoint: parse a local SERP file and print the
-# {"artworks": [...]} JSON envelope. (The live --browser path needs headless
-# Chrome, so it is exercised under BROWSER_TESTS, not here.)
+# {"artworks": [...]} JSON envelope.
 RSpec.describe SerpapiCodeChallenge::CLI do
   def run(*argv)
     out = StringIO.new

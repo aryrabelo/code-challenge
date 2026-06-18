@@ -4,12 +4,10 @@ require "json"
 
 module SerpapiCodeChallenge
   # Tiny CLI / programmatic entrypoint, mirroring the ergonomics of the serpapi
-  # gem (give it a source, get structured results back). It parses a local SERP
-  # file, or renders a live URL through BrowserFetcher (headless Chrome), and
-  # prints the artworks as the SerpApi-style {"artworks": [...]} JSON envelope.
+  # gem (give it a saved SERP file, get structured results back). It parses the
+  # file and prints the artworks as the SerpApi-style {"artworks": [...]} JSON.
   #
   #   extract path/to/serp.html
-  #   extract --browser "https://www.google.com/search?q=Van+Gogh+paintings&hl=en"
   class CLI
     def self.run(argv, out: $stdout)
       new(argv).run(out)
@@ -27,18 +25,10 @@ module SerpapiCodeChallenge
     private
 
     def load_html
-      if (idx = @argv.index("--browser"))
-        BrowserFetcher.get(value_after(idx))   # headless-Chrome render (JS carousel)
-      else
-        path = @argv.find { |arg| !arg.start_with?("--") }
-        raise ArgumentError, "usage: extract <file.html> | --browser <url>" if path.nil?
+      path = @argv.find { |arg| !arg.start_with?("--") }
+      raise ArgumentError, "usage: extract <file.html>" if path.nil?
 
-        File.read(path)
-      end
-    end
-
-    def value_after(idx)
-      @argv[idx + 1] or raise ArgumentError, "missing value after #{@argv[idx]}"
+      File.read(path)
     end
   end
 end
