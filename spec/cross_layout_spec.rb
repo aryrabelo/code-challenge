@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 require "serpapi_code_challenge"
-require "support/vcr"
 
 MONET_COUNT = 50
 MONET_FIRST_NAME = "Impression, Sunrise"
 PICASSO_COUNT = 45
 PICASSO_FIRST_NAME = "Guernica"
+DA_VINCI_COUNT = 47
+DA_VINCI_FIRST_NAME = "Salvator Mundi"
 TARSILA_COUNT = 42                  # Portuguese (pt-BR) locale page
 TARSILA_FIRST_NAME = "Abaporu"
 TARANTINO_COUNT = 9                  # non-:works carousel: kc:/people/person:movies
@@ -50,16 +51,17 @@ RSpec.describe SerpapiCodeChallenge::CarouselParser do
       expect(items.first[:link]).to start_with("https://www.google.com/search")
     end
 
-    # Picasso's page shares its parsed output with the serp_fetcher cassette, so
-    # we replay that recorded SERP instead of storing the multi-MB raw page a
-    # second time — same deterministic facts (45 / "Guernica"), one source of HTML.
     it "extracts Picasso's works carousel exactly" do
-      items = VCR.use_cassette("serp_fetcher/picasso_paintings") do
-        html = SerpapiCodeChallenge::SerpFetcher.get("https://www.google.com/search?q=Pablo+Picasso+paintings&hl=en&gl=us")
-        described_class.new(html).artworks
-      end
+      items = extract("pages/picasso-paintings.html")
       expect(items.length).to eq(PICASSO_COUNT)
       expect(items.first[:name]).to eq(PICASSO_FIRST_NAME)
+      expect(items.first[:link]).to start_with("https://www.google.com/search")
+    end
+
+    it "extracts Leonardo da Vinci's works carousel exactly" do
+      items = extract("pages/da-vinci-paintings.html")
+      expect(items.length).to eq(DA_VINCI_COUNT)
+      expect(items.first[:name]).to eq(DA_VINCI_FIRST_NAME)
       expect(items.first[:link]).to start_with("https://www.google.com/search")
     end
 

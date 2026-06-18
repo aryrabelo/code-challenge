@@ -5,14 +5,11 @@ require "json"
 module SerpapiCodeChallenge
   # Tiny CLI / programmatic entrypoint, mirroring the ergonomics of the serpapi
   # gem (give it a source, get structured results back). It parses a local SERP
-  # file, or fetches a URL through SerpFetcher, and prints the artworks as the
-  # SerpApi-style {"artworks": [...]} JSON envelope.
+  # file, or renders a live URL through BrowserFetcher (headless Chrome), and
+  # prints the artworks as the SerpApi-style {"artworks": [...]} JSON envelope.
   #
   #   extract path/to/serp.html
-  #   extract --url "https://www.google.com/search?q=Van+Gogh+paintings&hl=en"
-  #
-  # The fetch path goes through SerpFetcher, which the test suite replays from a
-  # VCR cassette — so the network is recorded once and never hit live again.
+  #   extract --browser "https://www.google.com/search?q=Van+Gogh+paintings&hl=en"
   class CLI
     def self.run(argv, out: $stdout)
       new(argv).run(out)
@@ -32,11 +29,9 @@ module SerpapiCodeChallenge
     def load_html
       if (idx = @argv.index("--browser"))
         BrowserFetcher.get(value_after(idx))   # headless-Chrome render (JS carousel)
-      elsif (idx = @argv.index("--url"))
-        SerpFetcher.get(value_after(idx))      # plain HTTP (no JS)
       else
         path = @argv.find { |arg| !arg.start_with?("--") }
-        raise ArgumentError, "usage: extract <file.html> | --url <url> | --browser <url>" if path.nil?
+        raise ArgumentError, "usage: extract <file.html> | --browser <url>" if path.nil?
 
         File.read(path)
       end

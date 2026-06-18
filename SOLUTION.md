@@ -49,20 +49,16 @@ ruby bin/verify        # quick offline check vs the oracle → "PERFECT 47/47 �
 ## CLI
 
 ```bash
-bin/extract files/van-gogh-paintings.html        # parse a local SERP file
-bin/extract --url     "https://www.google.com/search?q=Van+Gogh+paintings&hl=en"  # plain HTTP
-bin/extract --browser "https://www.google.com/search?q=Van+Gogh+paintings&hl=en"  # headless render
+bin/extract files/van-gogh-paintings.html        # parse a local SERP file (the graded path)
+bin/extract --browser "https://www.google.com/search?q=Van+Gogh+paintings&hl=en"  # live, end-to-end
 ```
 
-Prints the SerpApi-style `{"artworks": [...]}` JSON. Three ways to get the HTML:
+Prints the SerpApi-style `{"artworks": [...]}` JSON. Two ways to get the HTML:
 
-- **local file** — the challenge's own use case (no network).
-- **`--url`** — `SerpFetcher` (plain `Net::HTTP`). Fast, but Google does **not** include
-  the JS-rendered carousel in the raw HTML. In tests this path is replayed from a
-  recorded **VCR cassette** — the network is recorded once and never hit live again.
-- **`--browser`** — `BrowserFetcher` drives a **headless Chrome** (Ferrum) to run the
-  JS so the carousel appears. Fully in-repo (no external browser). Chrome is a runtime
-  prereq (`CHROME_PATH` or auto-detected).
+- **local file** — the challenge's own use case (no network); how the suite and oracle run.
+- **`--browser`** — `BrowserFetcher` drives a **headless Chrome** (Ferrum) to render the
+  JS-injected carousel and serve the same structured JSON, **end-to-end against live Google**.
+  Fully in-repo (no external browser); Chrome is a runtime prereq (`CHROME_PATH` or auto-detected).
 
 ### Anti-block safeguards
 
@@ -93,13 +89,15 @@ Prints the SerpApi-style `{"artworks": [...]}` JSON. Three ways to get the HTML:
   `_setImagesSrc` scripts (JS `\x3d` → `=` decoded), or the data-URI in the films cell's
   sibling `<img>` `src`. Only `https`/raster data-URIs are emitted.
 
-`SerpFetcher` (`lib/serp_fetcher.rb`) is only used to acquire extra test pages; in the
-suite it is replayed from a **VCR cassette**, so tests never hit Google.
+`BrowserFetcher` (`lib/browser_fetcher.rb`) is the **acquisition** half — it renders live
+Google to capture the extra cross-layout test pages (see `script/capture_serps.rb`). Those
+pages are committed as fixtures, so the suite parses them directly and never hits Google.
 
 ## Tested against other carousels
 
-Per the challenge, the parser is verified against more carousels: **Monet** (50) and
-**Picasso** (45), a **Portuguese** (pt-BR) page (**Tarsila do Amaral**, 42), a **real
+Per the challenge, the parser is verified against more carousels: **Monet** (50),
+**Picasso** (45), **Leonardo da Vinci** (47), a **Portuguese** (pt-BR) page (**Tarsila do
+Amaral**, 42), a **real
 non-`:works` film carousel** (**Quentin Tarantino**, `kc:/people/person:movies`, 9 —
 its cells are structurally different: the `<a>` is empty, the title/year come from
 `aria-labelledby` spans, and the thumbnail is a sibling `<img>`), a synthetic
@@ -117,11 +115,10 @@ page (→ empty array) — confirming it works across layouts, locales, and enti
 ## Layout
 
 ```
-lib/                       # the gem (extractor, fetcher, version, entrypoint)
-spec/                      # RSpec: oracle + generalization + VCR replay
-  fixtures/pages/*.html    # real fetched carousels (Monet, Tarsila pt-BR, Tarantino films)
+lib/                       # the gem (extractor, browser fetcher, version, entrypoint)
+spec/                      # RSpec: oracle + cross-layout generalization
+  fixtures/pages/*.html    # real fetched carousels (Monet, da Vinci, Picasso, Tarsila, Tarantino)
   fixtures/*.html          # synthetic edge cases (films-carousel, no-carousel)
-  fixtures/cassettes/      # recorded HTTP interactions
 bin/verify                 # dependency-free oracle diff
 files/            # the original challenge files (inputs + oracle)
 Dockerfile, docker-compose.yml, mise.toml, lefthook.yml

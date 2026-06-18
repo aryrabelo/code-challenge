@@ -8,9 +8,8 @@ require "fileutils"
 # within one. By default it RAISES when called inside the cooldown (a hard
 # guarantee); with `wait: true` it sleeps until the next slot is free instead.
 #
-# Live fetchers (SerpFetcher, BrowserFetcher) call RateGuard.default.check! before
-# touching the network. Tests swap in RateGuard::NullGuard so replayed fetches are
-# never throttled.
+# BrowserFetcher calls RateGuard.default.check! before touching the network.
+# Tests swap in RateGuard::NullGuard so they are never throttled.
 module SerpapiCodeChallenge; end
 
 class SerpapiCodeChallenge::RateGuard

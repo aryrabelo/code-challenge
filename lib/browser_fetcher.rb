@@ -4,8 +4,8 @@ require "uri"
 
 # Programmatic, in-repo browser fetcher — the cmux-independent way to RENDER a
 # Google SERP. The knowledge-graph carousel is injected by JavaScript, so a plain
-# HTTP GET (see SerpFetcher) never sees it; BrowserFetcher drives a headless
-# Chrome via Ferrum to run that JS and returns the rendered HTML.
+# HTTP GET never sees it; BrowserFetcher drives a headless Chrome via Ferrum to
+# run that JS and returns the rendered HTML.
 #
 # Chrome is a runtime prerequisite (like Ruby). Set CHROME_PATH, or it auto-detects
 # common Chrome / Chromium / Brave / Playwright locations.
