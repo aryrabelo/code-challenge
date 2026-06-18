@@ -43,7 +43,8 @@ class SerpapiCodeChallenge::CarouselParser
   end
 
   def item(anchor)
-    name, subtitle = labels(anchor)
+    text_name, subtitle = labels(anchor)
+    name = alt_name(anchor) || text_name
     return unless name
 
     art = { name: name }
@@ -51,6 +52,15 @@ class SerpapiCodeChallenge::CarouselParser
     art[:link] = GOOGLE + anchor["href"] if anchor["href"].start_with?("/")
     art[:image] = image(anchor)
     art
+  end
+
+  # Prefer the image's alt text — Google's screen-reader label for the cell, which
+  # is the artwork title verbatim. It is semantic (independent of Google's rotating
+  # div nesting), so it is the most durable name source; the structural leaf-text /
+  # aria labels below are the fallback for cells whose <img> carries no alt (films).
+  def alt_name(anchor)
+    img = anchor.at_css("img") || cell_image(anchor)
+    img && norm(img["alt"])
   end
 
   # Name + optional date: the anchor's inner leaf-text divs (paintings), or the
@@ -90,7 +100,9 @@ class SerpapiCodeChallenge::CarouselParser
     nil
   end
 
-  def clean(el) = el && !(t = el.text.gsub(" ", " ").strip).empty? ? t : nil
+  # Normalize Google's non-breaking spaces (U+00A0) and trim; nil when empty.
+  def norm(str) = str && !(t = str.gsub("\u00A0", " ").strip).empty? ? t : nil
+  def clean(el) = norm(el&.text)
 
   def present(value) = value && !value.empty? ? value : nil
 

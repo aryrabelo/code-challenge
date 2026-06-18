@@ -46,6 +46,17 @@ RSpec.describe SerpapiCodeChallenge::CarouselParser do
     expect(starry["extensions"]).to eq(["1889"])
   end
 
+  # The name comes from the <img> alt (Google's screen-reader label) in preference
+  # to the structural leaf-text div, so it survives Google reflowing the cell DOM.
+  it "takes the name from the image alt text over a divergent structural label" do
+    html = %(<div data-attrid="kc:/visual_art/visual_artist:works">) +
+           %(<a href="/search?q=x&stick=z"><img alt="Real Title" data-src="https://x/i.png">) +
+           %(<div><div>Stale Div Text</div><div>1889</div></div></a></div>)
+    item = described_class.new(html).artworks.first
+    expect(item[:name]).to eq("Real Title")
+    expect(item[:extensions]).to eq(["1889"])
+  end
+
   describe "generalization to other carousel layouts" do
     pages = Dir[File.join(ROOT, "spec", "fixtures", "pages", "*.html")]
 
