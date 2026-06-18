@@ -6,9 +6,14 @@ Solution to the SerpApi **"Extract Van Gogh Paintings"** code challenge.
 > Parse a saved Google SERP HTML page (no extra HTTP requests) and extract the
 > knowledge-graph *artworks* carousel as an array of `{ name, extensions, link, image }`.
 
-**Status:** reproduces the official `expected-array.json` **47/47, field-for-field**,
-and generalizes to other carousels (Monet, Picasso, Tarsila pt-BR). Ruby 3.3 + RSpec, green in
-Docker and locally.
+> **Branch `solution-2` — the [ponytail](https://github.com/DietrichGebert/ponytail) (laziest-senior-dev) variant.** The parser is **61 lines** (vs 232 on the structural `solution` branch) and drops the `data-attrid` scoping entirely: a carousel item is just a `/search?…stick=` anchor that carries a thumbnail.
+
+**Status:** reproduces the official `expected-array.json` **47/47, field-for-field**, and
+generalizes to the other works-type carousels (Monet 50, Picasso 45, Tarsila pt-BR 42).
+Ruby 3.3 + RSpec, green in Docker and locally. Trade-off: it does **not** handle the real
+non-`:works` `aria-labelledby` layout (a person's films) that the structural branch covers —
+outside the challenge's "same kind of carrousel" brief, and exactly the complexity this
+version trades away.
 
 ## Run
 
@@ -58,32 +63,31 @@ Prints the SerpApi-style `{"artworks": [...]}` JSON. Three ways to get the HTML:
 
 ## Approach
 
-`CarouselParser` (`lib/carousel_parser.rb`) parses the SERP with Nokogiri:
+`CarouselParser` (`lib/carousel_parser.rb`, 61 lines) parses the SERP with Nokogiri:
 
-- **Carousel scope** — finds the section by its *stable* knowledge-graph `data-attrid`:
-  the exact artist `kc:/visual_art/visual_artist:works`, then any `:works` section, then
-  (for non-artist pages) the first `kc:/<domain>/<type>:<collection>` carousel that holds
-  `stick=` anchors — so it generalizes to films/books. No hashed-class scoping.
-- **name / date** — purely structural: each item is two stacked leaf-text divs (name
-  first, optional subtitle/date second), so it never depends on Google's rotating class
-  names. `extensions` is **omitted** when an item has no date (the oracle drops it for 4).
-- **link** — the item anchor's `href`, absolutized against `https://www.google.com`.
-- **image** — two branches: lazy items expose a gstatic URL via `data-src`; the first
-  ~8 visible items embed base64 in `_setImagesSrc(['<img id>'], 's')` scripts, which we
-  decode (including JS `\x3d` → `=` escapes) into the inline `data:image` URI.
+- **Carousel scope** — one CSS selector: every `a[href*="/search"][href*="stick="]` that
+  carries a thumbnail (`<img>`). The thumbnail filter alone drops the page's non-carousel
+  `stick=` links, so no `data-attrid` scoping is needed for the challenge's carousels.
+- **name / date** — each item is two stacked leaf-text divs (name first, optional
+  subtitle/date second). `extensions` is **omitted** when an item has no date.
+- **link** — the anchor's root-relative `href`, prefixed with `https://www.google.com`
+  (non-root-relative hrefs are dropped — lazy, not negligent).
+- **image** — the gstatic URL the page already exposes via `data-src`, or, for the ~8
+  visible items, the base64 embedded in `_setImagesSrc(['<img id>'], 's')` scripts
+  (decoding JS `\x3d` → `=` escapes). Only `https`/`data:image` values are emitted.
 
 `SerpFetcher` (`lib/serp_fetcher.rb`) is only used to acquire extra test pages; in the
 suite it is replayed from a **VCR cassette**, so tests never hit Google.
 
 ## Tested against other carousels
 
-Per the challenge, the parser is verified against more carousels: **Monet** (50) and
-**Picasso** (45), a **Portuguese** (pt-BR) page (**Tarsila do Amaral**, 42), a **real
-non-`:works` film carousel** (**Quentin Tarantino**, `kc:/people/person:movies`, 9 —
-its cells are structurally different: the `<a>` is empty, the title/year come from
-`aria-labelledby` spans, and the thumbnail is a sibling `<img>`), a synthetic
+Per the challenge, the parser is verified against more carousels: **Monet** (50),
+**Picasso** (45), a **Portuguese** (pt-BR) page (**Tarsila do Amaral**, 42), a synthetic
 **non-painting** films carousel (subtitles, not years), and an explicit **no-carousel**
 page (→ empty array) — confirming it works across layouts, locales, and entity types.
+The one layout it does *not* handle is the real non-`:works` `aria-labelledby` carousel
+(covered on the structural `solution` branch); supporting it is the complexity this lazy
+variant intentionally drops.
 
 ## Development
 
