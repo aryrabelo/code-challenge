@@ -1,82 +1,90 @@
 # serpapi-code-challenge
 
-Solution to the SerpApi **"Extract Van Gogh Paintings"** code challenge.
+Solution to the SerpApi "Extract Van Gogh Paintings" challenge.
 
-> **Challenge:** <https://github.com/serpapi/code-challenge>
-> Parse a saved Google SERP HTML page (no extra HTTP requests) and extract the
-> knowledge-graph *artworks* carousel as an array of `{ name, extensions, link, image }`.
+> Challenge: <https://github.com/serpapi/code-challenge>
+> Parse a saved Google SERP HTML page (no extra HTTP) and return the
+> knowledge-graph artworks carousel as an array of `{ name, extensions, link, image }`.
 
-A layout-resilient Google knowledge-graph extractor. `lib/carousel_parser.rb`
-scopes the carousel by Google's durable knowledge-graph `data-attrid` rather than
-the hashed CSS classes that rotate per query, and takes each name from the
-image's **accessibility (`alt`) text** rather than a fragile div position. It
-reproduces the official `expected-array.json` **47/47, field-for-field**, and
-generalizes to other layouts: Monet (50), Picasso (45), Leonardo da Vinci (47),
-Tarsila pt-BR (42), and a real non-`:works` films carousel (Tarantino, 9) whose
-cells are structurally different (empty anchor, `aria-labelledby` title/year,
-sibling-`<img>` thumbnail).
+`lib/carousel_parser.rb` parses the saved page with Nokogiri. It reproduces the
+official `expected-array.json` exactly, 47 of 47, every field. It also runs on
+other artists: Monet (50), Picasso (45), Leonardo da Vinci (47), a pt-BR page for
+Tarsila do Amaral (42), and a person's films carousel (Tarantino, 9), which has a
+different cell shape (empty anchor, title and year in `aria-labelledby` spans,
+thumbnail in a sibling `<img>`).
 
 ## Run
 
 ```bash
 bundle install
-bundle exec rake                           # the gate: RSpec (incl. the 47/47 oracle) + RuboCop
+bundle exec rake                           # RSpec (incl. the 47/47 oracle) + RuboCop
 bundle exec rspec                          # just the tests
 bundle exec rubocop                        # just the complexity / bug check
 bin/extract files/van-gogh-paintings.html  # print the {"artworks": [...]} JSON
 ```
 
-Ruby 3.x + Nokogiri + RSpec + RuboCop. No network: it parses the saved file.
-The RuboCop gate (`.rubocop.yml`) enforces complexity (Metrics) and likely bugs
-(Lint), not cosmetic style.
+Ruby 3.x, Nokogiri, RSpec, RuboCop. Nothing hits the network; it reads the file.
+The RuboCop config (`.rubocop.yml`) only checks complexity (Metrics) and likely
+bugs (Lint), not cosmetic style.
 
 ## Approach
 
-`CarouselParser` parses the SERP with Nokogiri:
+The carousel is found by its knowledge-graph `data-attrid`, not by CSS class
+names, which are hashed and rotate per query. `SectionLocator` tries the exact
+artist-works attrid (`kc:/visual_art/visual_artist:works`), then any `:works`,
+then the first `kc:/<domain>/<type>:<collection>` section that holds `stick=`
+anchors (a person's films or books). Picking one section keeps a page with
+several carousels from bleeding into each other.
 
-- **Carousel scope** — one section, by its durable knowledge-graph `data-attrid`:
-  the exact artist `kc:/visual_art/visual_artist:works`, then any `:works`, then
-  the first `kc:/<domain>/<type>:<collection>` carousel holding `stick=` anchors
-  (a person's films/books). Scoping to one section keeps multi-carousel person
-  pages from merging. No hashed-class scoping.
-- **name** — the carousel `<img>`'s **`alt`** text. That is Google's
-  screen-reader label for the cell and equals the artwork title verbatim; being
-  semantic, it survives Google reflowing the cell's div nesting. The structural
-  leaf-text divs (paintings) or `aria-labelledby` spans (films) are the fallback
-  for cells whose `<img>` carries no `alt`.
-- **date / extensions** — the second structural label (a leaf-text div, or the
-  second `aria-labelledby` span). `extensions` is omitted when an item has no date.
-- **link** — the anchor's root-relative `href`, prefixed with
-  `https://www.google.com`; non-Google / `javascript:` / `data:` hrefs are dropped.
-- **image** — the gstatic URL the page exposes via `data-src`, or the base64
-  embedded in `_setImagesSrc` scripts (JS `\x3d` → `=` decoded), or the data-URI
-  in the films cell's sibling `<img>` `src`. Only `https`/raster data-URIs are
-  emitted (no `svg`/`js` beacons).
+Each anchor becomes one item:
 
-Hardening: invalid UTF-8 is scrubbed, libxml2's node-size cap is lifted (`huge`)
-so a giant pre-carousel node can't truncate the DOM, and the inline-image scan
-uses possessive quantifiers (no ReDoS).
+- name: the `<img>` `alt`. Google writes the title there as the screen-reader
+  text, so it matches what's shown and doesn't move when Google reshuffles the
+  surrounding divs. When an image has no `alt` (the films cell), it falls back to
+  the leaf-text divs or the `aria-labelledby` spans.
+- extensions: the date next to the name (second leaf-text div, or second aria
+  span). Left out when the item has no date.
+- link: the anchor's `/...` href with `https://www.google.com` in front.
+  Anything that isn't a root-relative Google link is dropped (`javascript:`,
+  `data:`, and so on).
+- image: the gstatic URL in `data-src`, or the base64 Google injects through
+  `_setImagesSrc` scripts (the `\x3d`-style escapes get decoded back to `=`), or
+  the data-URI in a films cell's sibling `<img>`. Only `https` and raster
+  data-URIs make it out, no svg or js.
+
+A few defensive bits, since the input is a real Google page: bad UTF-8 is
+scrubbed before parsing, libxml2's node-size cap is raised (`huge`) so a big node
+ahead of the carousel can't cut the DOM short, and the inline-image regex uses
+possessive quantifiers so it won't backtrack on adversarial input.
+
+The work is split into small pieces: `SectionLocator` finds the section,
+`ThumbnailResolver` builds the inline-base64 index and sanitizes thumbnail URLs,
+and `Cell` (with `NestedCell` and `LinkedCell`) turns one anchor into one item.
+`CarouselParser` wires them together.
 
 ## Tested against other carousels
 
-Per the challenge's "test against 2 other similar result pages", the parser is
-verified against more carousels: **Monet** (50), **Picasso** (45), **Leonardo da
-Vinci** (47), a **Portuguese** (pt-BR) page (**Tarsila do Amaral**, 42), a **real
-non-`:works` film carousel** (**Quentin Tarantino**, `kc:/people/person:movies`,
-9 — empty `<a>`, `aria-labelledby` title/year, sibling `<img>` thumbnail), a
-synthetic **non-painting** films carousel (subtitles, not years), and an explicit
-**no-carousel** page (→ empty array) — confirming it works across layouts,
-locales, and entity types.
+The challenge asks for two other pages; there are more. Real fetched pages for
+Monet (50), Picasso (45), Leonardo da Vinci (47), and Tarsila do Amaral in pt-BR
+(42). A real films carousel for Quentin Tarantino (`kc:/people/person:movies`,
+9) to exercise the empty-anchor / aria-labelledby / sibling-image shape. A
+synthetic films carousel where the subtitle isn't a year, to check that
+`extensions` doesn't pick up the title. And a page with no carousel, which
+returns an empty array.
 
 ## Layout
 
 ```
-lib/carousel_parser.rb     # the extractor
-bin/extract                # CLI: print the JSON for a saved SERP file
-spec/                      # RSpec: oracle (47/47) + cross-layout generalization
-  fixtures/pages/*.html    # other real carousels (Monet, da Vinci, Picasso, Tarsila, Tarantino)
-  fixtures/*.html          # synthetic edge cases (films-carousel, no-carousel)
-files/                     # the original challenge files (inputs + oracle)
+lib/
+  carousel_parser.rb     # orchestrator
+  section_locator.rb     # find the carousel section by data-attrid
+  thumbnail_resolver.rb  # inline base64 index + thumbnail URL
+  cell.rb                # Cell + NestedCell / LinkedCell (one anchor -> one item)
+bin/extract              # print the JSON for a saved SERP file
+spec/                    # RSpec: oracle (47/47) + cross-layout + unit specs
+  fixtures/pages/*.html  # other real carousels (Monet, da Vinci, Picasso, Tarsila, Tarantino)
+  fixtures/*.html        # synthetic edge cases (films-carousel, no-carousel)
+files/                   # the original challenge files (inputs + oracle)
 ```
 
 License: MIT (see `LICENSE`).
