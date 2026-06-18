@@ -1,7 +1,5 @@
 # Extract Van Gogh Paintings Code Challenge
 
-> **Solution:** the solution and writeup for this challenge live in **[SOLUTION.md](SOLUTION.md)** — the parser reproduces `expected-array.json` **47/47** (`docker compose run --rm test`, or `mise exec -- bundle exec rspec`). Everything below is the original challenge prompt.
-
 Goal is to extract a list of Van Gogh paintings from the attached Google search results page.
 
 ![Van Gogh paintings](https://github.com/serpapi/code-challenge/blob/master/files/van-gogh-paintings.png?raw=true "Van Gogh paintings")

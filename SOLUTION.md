@@ -7,7 +7,7 @@ Solution to the SerpApi **"Extract Van Gogh Paintings"** code challenge.
 > knowledge-graph *artworks* carousel as an array of `{ name, extensions, link, image }`.
 
 **Status:** reproduces the official `expected-array.json` **47/47, field-for-field**,
-and generalizes to other carousels (Monet, Picasso, Tarsila pt-BR). Ruby 3.3 + RSpec, green in
+and generalizes to other carousels (Monet, Picasso). Ruby 3.3 + RSpec, green in
 Docker and locally.
 
 ## Run
@@ -95,7 +95,7 @@ page (→ empty array) — confirming it works across layouts, locales, and enti
 ```
 lib/                       # the gem (extractor, fetcher, version, entrypoint)
 spec/                      # RSpec: oracle + generalization + VCR replay
-  fixtures/pages/*.html    # extra carousels (Monet, Picasso, Tarsila pt-BR; + synthetic films/no-carousel)
+  fixtures/pages/*.html    # extra carousels (Monet, Picasso)
   fixtures/cassettes/      # recorded HTTP interactions
 bin/verify                 # dependency-free oracle diff
 files/            # the original challenge files (inputs + oracle)
