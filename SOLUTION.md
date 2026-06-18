@@ -78,7 +78,10 @@ suite it is replayed from a **VCR cassette**, so tests never hit Google.
 ## Tested against other carousels
 
 Per the challenge, the parser is verified against more carousels: **Monet** (50) and
-**Picasso** (45), a **Portuguese** (pt-BR) page (**Tarsila do Amaral**, 42), a synthetic
+**Picasso** (45), a **Portuguese** (pt-BR) page (**Tarsila do Amaral**, 42), a **real
+non-`:works` film carousel** (**Quentin Tarantino**, `kc:/people/person:movies`, 9 —
+its cells are structurally different: the `<a>` is empty, the title/year come from
+`aria-labelledby` spans, and the thumbnail is a sibling `<img>`), a synthetic
 **non-painting** films carousel (subtitles, not years), and an explicit **no-carousel**
 page (→ empty array) — confirming it works across layouts, locales, and entity types.
 
@@ -95,7 +98,8 @@ page (→ empty array) — confirming it works across layouts, locales, and enti
 ```
 lib/                       # the gem (extractor, fetcher, version, entrypoint)
 spec/                      # RSpec: oracle + generalization + VCR replay
-  fixtures/pages/*.html    # extra carousels (Monet, Picasso, Tarsila pt-BR; + synthetic films/no-carousel)
+  fixtures/pages/*.html    # real fetched carousels (Monet, Tarsila pt-BR, Tarantino films)
+  fixtures/*.html          # synthetic edge cases (films-carousel, no-carousel)
   fixtures/cassettes/      # recorded HTTP interactions
 bin/verify                 # dependency-free oracle diff
 files/            # the original challenge files (inputs + oracle)
