@@ -6,52 +6,29 @@ Solution to the SerpApi **"Extract Van Gogh Paintings"** code challenge.
 > Parse a saved Google SERP HTML page (no extra HTTP requests) and extract the
 > knowledge-graph *artworks* carousel as an array of `{ name, extensions, link, image }`.
 
-A **layout-resilient** Google knowledge-graph extractor — SerpApi's core
-competency. A ~100-line parser (`lib/carousel_parser.rb`) scopes the carousel by
-Google's durable knowledge-graph `data-attrid` rather than the hashed CSS classes
-that rotate per query, and takes each name from the image's **accessibility
-(`alt`) text** rather than a fragile div position. It reproduces the official
-`expected-array.json` **47/47, field-for-field**, and generalizes to genuinely
-different layouts: Monet (50), Picasso (45), Leonardo da Vinci (47), Tarsila
-pt-BR (42), and a **real non-`:works` films carousel** (Tarantino, 9) whose cells
-are structurally different — empty anchor, `aria-labelledby` title/year,
-sibling-`<img>` thumbnail.
-
-Ruby 3.3 + RSpec, green in Docker and locally.
-
-> Want the live **fetch-and-serve** pipeline (headless Chrome render of live
-> Google, rate-guard, VPN/proxy) that SerpApi productizes? It lives on its own
-> branch so it never weighs on the graded core — see **[EXTRAS.md](EXTRAS.md)**.
+A layout-resilient Google knowledge-graph extractor. `lib/carousel_parser.rb`
+scopes the carousel by Google's durable knowledge-graph `data-attrid` rather than
+the hashed CSS classes that rotate per query, and takes each name from the
+image's **accessibility (`alt`) text** rather than a fragile div position. It
+reproduces the official `expected-array.json` **47/47, field-for-field**, and
+generalizes to other layouts: Monet (50), Picasso (45), Leonardo da Vinci (47),
+Tarsila pt-BR (42), and a real non-`:works` films carousel (Tarantino, 9) whose
+cells are structurally different (empty anchor, `aria-labelledby` title/year,
+sibling-`<img>` thumbnail).
 
 ## Run
 
 ```bash
-# Docker (reproducible, no local Ruby needed):
-docker compose run --rm test          # full RSpec suite   (docker-compose also works)
-docker compose run --rm test bin/verify
-
-# Local — toolchain pinned with mise (mise.toml → Ruby 3.3.6):
-mise install
-mise exec -- bundle install
-mise exec -- bundle exec rspec
-
-# Or with any Ruby 3.x on PATH:
-bundle install && bundle exec rspec
-ruby bin/verify        # quick offline check vs the oracle → "PERFECT 47/47 ✅"
+bundle install
+bundle exec rspec                          # full suite, incl. the 47/47 oracle check
+bin/extract files/van-gogh-paintings.html  # print the {"artworks": [...]} JSON
 ```
 
-## CLI
-
-```bash
-bin/extract files/van-gogh-paintings.html        # parse a local SERP file
-```
-
-Prints the SerpApi-style `{"artworks": [...]}` JSON for the saved page — the
-challenge's own use case (no network).
+Ruby 3.x + Nokogiri + RSpec. No network: it parses the saved file.
 
 ## Approach
 
-`CarouselParser` (`lib/carousel_parser.rb`) parses the SERP with Nokogiri:
+`CarouselParser` parses the SERP with Nokogiri:
 
 - **Carousel scope** — one section, by its durable knowledge-graph `data-attrid`:
   the exact artist `kc:/visual_art/visual_artist:works`, then any `:works`, then
@@ -78,34 +55,24 @@ uses possessive quantifiers (no ReDoS).
 
 ## Tested against other carousels
 
-Per the challenge, the parser is verified against more carousels: **Monet** (50),
-**Picasso** (45), **Leonardo da Vinci** (47), a **Portuguese** (pt-BR) page
-(**Tarsila do Amaral**, 42), a **real non-`:works` film carousel**
-(**Quentin Tarantino**, `kc:/people/person:movies`, 9 — empty `<a>`,
-`aria-labelledby` title/year, sibling `<img>` thumbnail), a synthetic
-**non-painting** films carousel (subtitles, not years), and an explicit
+Per the challenge's "test against 2 other similar result pages", the parser is
+verified against more carousels: **Monet** (50), **Picasso** (45), **Leonardo da
+Vinci** (47), a **Portuguese** (pt-BR) page (**Tarsila do Amaral**, 42), a **real
+non-`:works` film carousel** (**Quentin Tarantino**, `kc:/people/person:movies`,
+9 — empty `<a>`, `aria-labelledby` title/year, sibling `<img>` thumbnail), a
+synthetic **non-painting** films carousel (subtitles, not years), and an explicit
 **no-carousel** page (→ empty array) — confirming it works across layouts,
 locales, and entity types.
-
-## Development
-
-- **TDD** — behaviour is specified in `spec/` first. The extractor's contract
-  lives in `spec/carousel_parser_spec.rb`.
-- **Lefthook** — `lefthook install` wires pre-commit/pre-push to run the suite,
-  so a red suite can't be committed or pushed.
-- **mise** pins Ruby; **Docker Compose** gives a clean reproducible run.
 
 ## Layout
 
 ```
-lib/                       # the gem (extractor, version, CLI entrypoint)
-spec/                      # RSpec: oracle + cross-layout generalization
-  fixtures/pages/*.html    # real fetched carousels (Monet, da Vinci, Picasso, Tarsila, Tarantino)
+lib/carousel_parser.rb     # the extractor
+bin/extract                # CLI: print the JSON for a saved SERP file
+spec/                      # RSpec: oracle (47/47) + cross-layout generalization
+  fixtures/pages/*.html    # other real carousels (Monet, da Vinci, Picasso, Tarsila, Tarantino)
   fixtures/*.html          # synthetic edge cases (films-carousel, no-carousel)
-bin/verify                 # dependency-free oracle diff
 files/                     # the original challenge files (inputs + oracle)
-Dockerfile, docker-compose.yml, mise.toml, lefthook.yml
-EXTRAS.md                  # the optional live fetch-and-serve layer (separate branch)
 ```
 
 License: MIT (see `LICENSE`).
