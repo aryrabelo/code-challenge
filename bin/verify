@@ -3,8 +3,10 @@
 
 # Offline correctness proof. Parses the official challenge fixture with
 # SerpapiCodeChallenge::CarouselParser and diffs the result against the official expected-array.json,
-# field by field. Runs with nothing but a system Ruby + Nokogiri — no Bundler,
-# no RSpec — so it is always runnable as a smoke test.
+# field by field. Needs only Ruby + Nokogiri (no RSpec/VCR), so it stays a fast
+# smoke test. Nokogiri must be importable: on a dev box it usually is globally,
+# but on a clean CI runner it lives only in the bundle, so CI runs this via
+# `bundle exec ruby bin/verify` (see .github/workflows/ci.yml).
 #
 #   bin/verify            # => "PERFECT 47/47" and exit 0, or a diff and exit 1
 
