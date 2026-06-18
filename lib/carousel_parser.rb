@@ -3,16 +3,13 @@
 require "nokogiri"
 require "json"
 
-# Solution 3 — one lean parser that covers EVERY carousel the suite pins: the
-# Van Gogh oracle, the Monet/Picasso/Tarsila works carousels, AND the real
-# non-:works aria-labelledby films carousel. The lazy spirit of solution-2
-# (scope to one carousel, no fetch/security scaffolding) kept, plus the two
-# small branches the films layout needs. ~90 lines instead of 232.
+# One lean parser covering every carousel the suite pins: the Van Gogh oracle,
+# the Monet/Picasso/Tarsila :works carousels, and the real non-:works films one.
 module SerpapiCodeChallenge; end
 
 class SerpapiCodeChallenge::CarouselParser
   GOOGLE = "https://www.google.com"
-  ENTITY = %r{kc:/\w+/\w+:\w+}                                   # kc:/<domain>/<type>:<collection>
+  ENTITY = %r{kc:/\w+/\w+:\w+}
   RASTER = %r{\Ahttps://|\Adata:image/(?:png|jpe?g|gif|webp);base64,}
 
   def self.from_file(path) = new(File.read(path))
@@ -37,8 +34,7 @@ class SerpapiCodeChallenge::CarouselParser
 
   # Scope to ONE carousel by its durable knowledge-graph data-attrid: the artist
   # works section, else any ":works", else the first entity carousel that holds
-  # stick= anchors (a person's films/books). Keeps multi-carousel person pages
-  # from merging; whole document as a last resort.
+  # stick= anchors (a person's films/books); whole document as a last resort.
   def container
     @doc.at_css('[data-attrid="kc:/visual_art/visual_artist:works"]') ||
       @doc.css("[data-attrid]").find { |n| n["data-attrid"].to_s.end_with?(":works") } ||
@@ -52,7 +48,7 @@ class SerpapiCodeChallenge::CarouselParser
 
     art = { name: name }
     art[:extensions] = [subtitle] if subtitle
-    art[:link] = GOOGLE + anchor["href"] if anchor["href"].start_with?("/")   # lazy, not negligent
+    art[:link] = GOOGLE + anchor["href"] if anchor["href"].start_with?("/")
     art[:image] = image(anchor)
     art
   end
@@ -68,16 +64,16 @@ class SerpapiCodeChallenge::CarouselParser
     anchor["aria-labelledby"].to_s.split.first(2).map { |id| clean(@doc.at_css("##{id}")) }
   end
 
-  # Thumbnail: inside the anchor (paintings) it is a gstatic data-src or the
-  # embedded base64; beside it (films) the data-URI sits in a sibling <img>'s
-  # src. Only https / raster data-URIs are emitted (no svg/js beacons).
+  # Thumbnail: inside the anchor (paintings) a gstatic data-src or embedded
+  # base64; beside it (films) the data-URI in a sibling <img> src. Only https /
+  # raster data-URIs are emitted (no svg/js beacons).
   def image(anchor)
     inner = anchor.at_css("img")
     img = inner || cell_image(anchor)
     return unless img
 
-    src = inner ? present(img["data-src"]) || @inline[img["id"]]
-                : present(img["src"]) || present(img["data-src"]) || @inline[img["id"]]
+    keys = inner ? %w[data-src] : %w[src data-src]
+    src = keys.filter_map { |k| present(img[k]) }.first || @inline[img["id"]]
     src if src&.match?(RASTER)
   end
 
@@ -94,12 +90,7 @@ class SerpapiCodeChallenge::CarouselParser
     nil
   end
 
-  def clean(el)
-    return unless el
-
-    text = el.text.gsub(" ", " ").strip
-    text unless text.empty?
-  end
+  def clean(el) = el && !(t = el.text.gsub(" ", " ").strip).empty? ? t : nil
 
   def present(value) = value && !value.empty? ? value : nil
 
