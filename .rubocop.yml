@@ -1,0 +1,27 @@
+# A runnable quality gate, not a cosmetic style nitpicker. It enforces the two
+# things worth failing a build over: complexity (Metrics) and likely bugs (Lint).
+# Run it with `bundle exec rubocop` (or `bundle exec rake`, which also runs RSpec).
+AllCops:
+  TargetRubyVersion: 3.3
+  NewCops: disable
+  SuggestExtensions: false
+
+# Cosmetic layers are off on purpose — keep the gate about substance.
+Style:
+  Enabled: false
+Layout:
+  Enabled: false
+Naming:
+  Enabled: false
+
+Metrics:
+  Enabled: true
+
+# RSpec describe/context blocks are legitimately long; don't count them.
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "Rakefile"
+
+Lint:
+  Enabled: true

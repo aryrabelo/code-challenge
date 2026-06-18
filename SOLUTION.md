@@ -20,11 +20,15 @@ sibling-`<img>` thumbnail).
 
 ```bash
 bundle install
-bundle exec rspec                          # full suite, incl. the 47/47 oracle check
+bundle exec rake                           # the gate: RSpec (incl. the 47/47 oracle) + RuboCop
+bundle exec rspec                          # just the tests
+bundle exec rubocop                        # just the complexity / bug check
 bin/extract files/van-gogh-paintings.html  # print the {"artworks": [...]} JSON
 ```
 
-Ruby 3.x + Nokogiri + RSpec. No network: it parses the saved file.
+Ruby 3.x + Nokogiri + RSpec + RuboCop. No network: it parses the saved file.
+The RuboCop gate (`.rubocop.yml`) enforces complexity (Metrics) and likely bugs
+(Lint), not cosmetic style.
 
 ## Approach
 
