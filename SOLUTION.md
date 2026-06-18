@@ -6,9 +6,14 @@ Solution to the SerpApi **"Extract Van Gogh Paintings"** code challenge.
 > Parse a saved Google SERP HTML page (no extra HTTP requests) and extract the
 > knowledge-graph *artworks* carousel as an array of `{ name, extensions, link, image }`.
 
-**Status:** reproduces the official `expected-array.json` **47/47, field-for-field**,
-and generalizes to other carousels (Monet, Picasso, Tarsila pt-BR). Ruby 3.3 + RSpec, green in
-Docker and locally.
+> **Branch `solution-3` — lean *and* complete.** One **109-line** parser (vs 232 on
+> `solution`) that still covers every carousel: the Van Gogh oracle, the works carousels,
+> AND the real non-`:works` `aria-labelledby` films carousel that the 61-line `solution-2`
+> traded away. Same coverage as `solution`, ~53% less code.
+
+**Status:** reproduces the official `expected-array.json` **47/47, field-for-field**, and
+generalizes to Monet (50), Picasso (45), Tarsila pt-BR (42) and a real non-`:works` films
+carousel (Tarantino, 9). Ruby 3.3 + RSpec, green in Docker and locally.
 
 ## Run
 
@@ -58,19 +63,21 @@ Prints the SerpApi-style `{"artworks": [...]}` JSON. Three ways to get the HTML:
 
 ## Approach
 
-`CarouselParser` (`lib/carousel_parser.rb`) parses the SERP with Nokogiri:
+`CarouselParser` (`lib/carousel_parser.rb`, 109 lines) parses the SERP with Nokogiri:
 
-- **Carousel scope** — finds the section by its *stable* knowledge-graph `data-attrid`:
-  the exact artist `kc:/visual_art/visual_artist:works`, then any `:works` section, then
-  (for non-artist pages) the first `kc:/<domain>/<type>:<collection>` carousel that holds
-  `stick=` anchors — so it generalizes to films/books. No hashed-class scoping.
-- **name / date** — purely structural: each item is two stacked leaf-text divs (name
-  first, optional subtitle/date second), so it never depends on Google's rotating class
-  names. `extensions` is **omitted** when an item has no date (the oracle drops it for 4).
-- **link** — the item anchor's `href`, absolutized against `https://www.google.com`.
-- **image** — two branches: lazy items expose a gstatic URL via `data-src`; the first
-  ~8 visible items embed base64 in `_setImagesSrc(['<img id>'], 's')` scripts, which we
-  decode (including JS `\x3d` → `=` escapes) into the inline `data:image` URI.
+- **Carousel scope** — one section, by its durable knowledge-graph `data-attrid`: the
+  exact artist `kc:/visual_art/visual_artist:works`, then any `:works`, then the first
+  `kc:/<domain>/<type>:<collection>` carousel holding `stick=` anchors (a person's
+  films/books). Scoping to one section keeps multi-carousel person pages from merging.
+- **two cell shapes** — a painting cell nests the name/date in leaf-text divs and the
+  `<img>` inside the anchor; a films cell has an empty anchor whose title/year are
+  `aria-labelledby` spans and whose thumbnail is a sibling `<img>`. `labels` and `image`
+  each fall through from the first shape to the second. `extensions` is omitted when an
+  item has no date.
+- **link** — the anchor's root-relative `href`, prefixed with `https://www.google.com`.
+- **image** — the gstatic URL the page exposes via `data-src`, or the base64 embedded in
+  `_setImagesSrc` scripts (JS `\x3d` → `=` decoded), or the data-URI in the films cell's
+  sibling `<img>` `src`. Only `https`/raster data-URIs are emitted.
 
 `SerpFetcher` (`lib/serp_fetcher.rb`) is only used to acquire extra test pages; in the
 suite it is replayed from a **VCR cassette**, so tests never hit Google.
