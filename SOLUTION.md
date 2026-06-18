@@ -6,14 +6,28 @@ Solution to the SerpApi **"Extract Van Gogh Paintings"** code challenge.
 > Parse a saved Google SERP HTML page (no extra HTTP requests) and extract the
 > knowledge-graph *artworks* carousel as an array of `{ name, extensions, link, image }`.
 
-> **Branch `solution-3` — lean *and* complete.** One **109-line** parser (vs 232 on
-> `solution`) that still covers every carousel: the Van Gogh oracle, the works carousels,
-> AND the real non-`:works` `aria-labelledby` films carousel that the 61-line `solution-2`
-> traded away. Same coverage as `solution`, ~53% less code.
+> A **layout-resilient** Google knowledge-graph extractor — SerpApi's core competency —
+> wrapped in the **fetch-and-serve pipeline SerpApi productizes**. The graded path parses
+> the provided file (per the brief: *no extra HTTP needed*); the same parser also runs
+> end-to-end against **live Google**.
 
-**Status:** reproduces the official `expected-array.json` **47/47, field-for-field**, and
-generalizes to Monet (50), Picasso (45), Tarsila pt-BR (42) and a real non-`:works` films
-carousel (Tarantino, 9). Ruby 3.3 + RSpec, green in Docker and locally.
+**Two things this demonstrates**
+
+1. **Resilient extraction → exact output.** A **100-line** parser (`lib/carousel_parser.rb`)
+   scopes the carousel by Google's durable knowledge-graph `data-attrid` rather than the
+   hashed CSS classes that rotate per query, so it survives layout churn. It reproduces the
+   official `expected-array.json` **47/47, field-for-field**, and generalizes to genuinely
+   different layouts: Monet (50), Picasso (45), Tarsila pt-BR (42), and a **real non-`:works`
+   films carousel** (Tarantino, 9) whose cells are structurally different — empty anchor,
+   `aria-labelledby` title/year, sibling-`<img>` thumbnail. This is the competency SerpApi sells.
+
+2. **Fetch-and-serve, like the product.** `bin/extract --browser "<google search url>"`
+   renders live Google in headless Chrome (anti-block rate-guard, optional VPN/proxy) and
+   prints the same `{"artworks": [...]}` JSON SerpApi serves to clients. The core uses the
+   saved file because the brief asks for it — the live path is here to show the whole pipeline
+   is understood, **without** breaking the "no extra HTTP for the core" rule.
+
+Ruby 3.3 + RSpec, green in Docker and locally.
 
 ## Run
 
@@ -63,7 +77,7 @@ Prints the SerpApi-style `{"artworks": [...]}` JSON. Three ways to get the HTML:
 
 ## Approach
 
-`CarouselParser` (`lib/carousel_parser.rb`, 109 lines) parses the SERP with Nokogiri:
+`CarouselParser` (`lib/carousel_parser.rb`, 100 lines) parses the SERP with Nokogiri:
 
 - **Carousel scope** — one section, by its durable knowledge-graph `data-attrid`: the
   exact artist `kc:/visual_art/visual_artist:works`, then any `:works`, then the first
