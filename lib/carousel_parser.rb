@@ -94,14 +94,20 @@ class SerpapiCodeChallenge::CarouselParser
   # knowledge-graph carousel signature) and carries a thumbnail.
   def carousel_anchor?(anchor)
     href = anchor["href"].to_s
-    href.include?("/search") && href.include?("stick=") && !anchor.at_css("img").nil?
+    return false unless href.include?("/search") && href.include?("stick=")
+
+    # Two cell layouts: an artist :works cell nests the <img> and text inside the
+    # anchor; a person/entity carousel (e.g. kc:/people/person:movies) uses an
+    # empty anchor whose title/year are aria-labelledby spans and whose thumbnail
+    # is a sibling node. Accept either signature.
+    !anchor.at_css("img").nil? || !anchor["aria-labelledby"].to_s.empty?
   end
 
   # Each item is two stacked leaf-text divs: the name first, then an optional
   # subtitle/date — keyed on structure, not on Google's hashed CSS classes
   # (which rotate per query). text_blocks is computed once per item.
   def build_artwork(anchor)
-    name, subtitle = text_blocks(anchor).first(2).map { |el| clean(el) }
+    name, subtitle = item_labels(anchor)
     return nil if name.nil?
 
     # Mirror SerpApi's shape: `extensions` is present only when the item carries
@@ -113,17 +119,55 @@ class SerpapiCodeChallenge::CarouselParser
     artwork
   end
 
+  # Name + optional subtitle/date for an item, from whichever layout it uses:
+  # the inner leaf-text divs (artist :works), or — for an empty entity-carousel
+  # anchor — the aria-labelledby spans it points at (e.g. a film's title + year).
+  def item_labels(anchor)
+    blocks = text_blocks(anchor).first(2).map { |el| clean(el) }
+    return blocks if blocks.first
+
+    ids = anchor["aria-labelledby"].to_s.split
+    ids.first(2).map { |id| clean(@doc.at_css("##{id}")) }
+  end
+
   # The thumbnail. Items the page renders inline expose their base64 via an
   # _setImagesSrc script keyed by the <img> id; lazy items only reference a
   # gstatic URL through data-src (fetching it would need an extra request, so we
   # surface the URL the page already gives us).
   def image_of(anchor)
     img = anchor.at_css("img")
-    return nil unless img
+    if img
+      # Inline-rendered items expose base64 via _setImagesSrc (keyed by id); lazy
+      # items only reference a gstatic URL through data-src.
+      candidate = present(img["data-src"]) || @image_index[img["id"]]
+    else
+      # Entity-carousel cells keep the <img> beside the (empty) anchor, often with
+      # the data-URI already in `src`. Find it within the single-item cell.
+      img = cell_image(anchor)
+      return nil unless img
 
-    data_src = img["data-src"]
-    candidate = data_src && !data_src.empty? ? data_src : @image_index[img["id"]]
+      candidate = present(img["src"]) || present(img["data-src"]) || @image_index[img["id"]]
+    end
     safe_image(candidate)
+  end
+
+  # The <img> belonging to an empty anchor's carousel cell: climb out of the
+  # anchor while still inside a single-item cell (one stick= anchor) and return
+  # the first thumbnail found. Stop at the row that holds every cell so we can't
+  # borrow a neighbour's image; lazy cells with no embedded <img> yield nil.
+  def cell_image(anchor)
+    node = anchor.parent
+    while node && node.css("a").count { |x| x["href"].to_s.include?("stick=") } <= 1
+      img = node.at_css("img")
+      return img if img
+
+      node = node.parent
+    end
+    nil
+  end
+
+  def present(value)
+    value && !value.empty? ? value : nil
   end
 
   # Only surface a thumbnail we trust: an https URL or an inline raster data-URI.

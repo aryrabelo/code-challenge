@@ -9,6 +9,8 @@ PICASSO_COUNT = 45
 PICASSO_FIRST_NAME = "Guernica"
 TARSILA_COUNT = 42                  # Portuguese (pt-BR) locale page
 TARSILA_FIRST_NAME = "Abaporu"
+TARANTINO_COUNT = 9                  # non-:works carousel: kc:/people/person:movies
+TARANTINO_FIRST_NAME = "Pulp Fiction"
 
 # Cross-layout / generalization correctness — the dimension the challenge most
 # probes ("test against 2 other similar result pages... different layouts").
@@ -66,6 +68,21 @@ RSpec.describe SerpapiCodeChallenge::CarouselParser do
       expect(items.length).to eq(TARSILA_COUNT)
       expect(items.first[:name]).to eq(TARSILA_FIRST_NAME)
       expect(items.first[:extensions]).to eq(["1928"])
+    end
+
+    # A genuinely different carousel TYPE on a REAL page: a person's films
+    # (kc:/people/person:movies), not an artist's :works. Its cells are
+    # structurally different from the painting carousels — the <a> is empty, the
+    # title/year live in aria-labelledby spans outside it, and the thumbnail is a
+    # sibling <img>. This exercises the generic non-:works fallback on real DOM,
+    # not just the synthetic films fixture.
+    it "extracts a real non-:works film carousel (kc:/people/person:movies)" do
+      items = extract("pages/tarantino-movies.html")
+      expect(items.length).to eq(TARANTINO_COUNT)
+      expect(items.first[:name]).to eq(TARANTINO_FIRST_NAME)
+      expect(items.first[:extensions]).to eq(["1994"])
+      expect(items.first[:link]).to start_with("https://www.google.com/search")
+      expect(items.first[:image]).to start_with("data:image/")
     end
   end
 
